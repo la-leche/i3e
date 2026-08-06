@@ -25,7 +25,7 @@ ifeq ($(OS),Windows_NT)
 endif
 
 all:
-\t$(CXX) $(CXXFLAGS) $(SOURCES) -o $(TARGET)
+    $(CXX) $(CXXFLAGS) $(SOURCES) -o $(TARGET)
 
 clean:
-\trm -f i3trade i3trade.exe
+    rm -f i3trade i3trade.exe
