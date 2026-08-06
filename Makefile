@@ -1,13 +1,16 @@
-CXX = g++
-CXXFLAGS = -O3 -std=c++17 -Wall -Wextra -pedantic
-LIBS = -lncursesw
+CXX := g++
+CXXFLAGS := -std=c++20 -O2 -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+LDLIBS := -lncurses
+TARGET := dist/i3trade
+SOURCES := main.cpp engine.cpp WindowTree.cpp
 
-TARGET = i3trade
+$(TARGET): $(SOURCES) engine.hpp WindowTree.hpp
+	$(CXX) $(CXXFLAGS) $(SOURCES) $(LDLIBS) -o $@
 
-all: $(TARGET)
-
-$(TARGET): main.cpp
-	$(CXX) $(CXXFLAGS) main.cpp -o $(TARGET) $(LIBS)
+run: $(TARGET)
+	./$(TARGET)
 
 clean:
-	rm -f $(TARGET) ticks.csv
+	rm -f $(TARGET)
+
+.PHONY: run clea
