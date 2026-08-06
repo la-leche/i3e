@@ -20,8 +20,8 @@ jobs:
           update: true
           install: >-
             mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-ncurses
             make
-
       - name: Build
         shell: msys2 {0}
         run: |
