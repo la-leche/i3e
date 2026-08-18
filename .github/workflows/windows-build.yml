@@ -22,15 +22,20 @@ jobs:
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-ncurses
             make
+
       - name: Build
         shell: msys2 {0}
-        run: |
-          make
+        run: make
 
-      - name: Upload Windows executable
+      - name: Bundle runtime DLLs
+        shell: msys2 {0}
+        run: |
+          mkdir -p dist
+          cp i3trade.exe ticks.csv dist/
+          ldd i3trade.exe | grep -E 'mingw64.*\.dll' | awk '{print $3}' | xargs -r -I{} cp "{}" dist/
+
+      - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
           name: i3trade-windows-x64
-          path: |
-            i3trade.exe
-            *.dll
+          path: dist/

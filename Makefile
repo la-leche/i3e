@@ -1,20 +1,28 @@
 .RECIPEPREFIX := >
 
 CXX ?= g++
-CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra
+CPPFLAGS ?=
+CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -Wpedantic
+LDFLAGS ?=
+LDLIBS ?=
 
-SOURCES = main.cpp engine.cpp WindowTree.cpp
-TARGET = i3trade
-LDLIBS = -lncurses
+SOURCES := main.cpp engine.cpp WindowTree.cpp
+TARGET := i3trade
 
 ifeq ($(OS),Windows_NT)
-TARGET = i3trade.exe
-CXXFLAGS += -DNCURSES_STATIC -I/mingw64/include/ncursesw
-LDLIBS = -lncursesw
+TARGET := i3trade.exe
+CPPFLAGS += -I/mingw64/include/ncursesw
+LDLIBS += -lncursesw
+else
+LDLIBS += -lncurses
 endif
 
-all:
->$(CXX) $(CXXFLAGS) $(SOURCES) -o $(TARGET) $(LDLIBS)
+all: $(TARGET)
+
+$(TARGET): $(SOURCES) engine.hpp WindowTree.hpp
+>$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(SOURCES) $(LDFLAGS) -o $@ $(LDLIBS)
 
 clean:
 >rm -f i3trade i3trade.exe
+
+.PHONY: all clean
