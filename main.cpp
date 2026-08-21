@@ -1,5 +1,5 @@
-#include "WindowTree.hpp"
-#include "engine.hpp"
+#include "core/WindowTree.hpp"
+#include "core/engine.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -99,8 +99,19 @@ int main()
     try
     {
         MappedFile input{"ticks.csv"};
+        std::vector<Tick> ticks;
+        parse_ticks(input.view(), ticks);
+
         std::vector<RangeBar> bars;
-        calculate_range_bars(input.view(), bars, 2.0);
+        calculate_range_bars(ticks, bars, 2.0);
+
+        TpoProfile tpo_profile;
+        calculate_tpo_profile(
+            ticks,
+            tpo_profile,
+            0.25, // Tick size, für ES/NQ/MES/MNQ passend
+            30    // 30-Minuten-TPO-Brackets
+        );
 
         initscr();
         cbreak();
@@ -130,10 +141,16 @@ int main()
                 layout_tree(*root, 0, 0, h - 1, w);
                 dirty = false;
             }
-            render_tree(*root, bars, offset, active);
+            render_tree(*root, bars, tpo_profile, offset, active);
             move(LINES - 1, 0);
             clrtoeol();
-            mvprintw(LINES - 1, 0, "[%s:%s] h/l scroll | Tab pane | v Delta | d delete | s TPO | 1/2/3 type | r session | q quit", active->chart->title().data(), active->id.c_str());
+            mvprintw(
+                LINES - 1,
+                0,
+                "[%s:%s] h/l scroll | +/- TPO zoom | Tab pane | "
+                "v Delta | d delete | s TPO | 1/2/3 type | r session | q quit",
+                active->chart->title().data(),
+                active->id.c_str());
             wnoutrefresh(stdscr);
             doupdate();
             const int key = getch();
@@ -162,6 +179,12 @@ int main()
                 --offset;
                 continue;
             }
+
+            if (active->chart->handle_key(key))
+            {
+                continue;
+            }
+
             if (key == '\t')
             {
                 std::vector<WindowNode *> leaves;
