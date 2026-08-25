@@ -6,7 +6,16 @@ CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -Wpedantic
 LDFLAGS ?=
 LDLIBS ?=
 
-SOURCES := main.cpp core/engine.cpp core/WindowTree.cpp
+
+SOURCES := \
+    main.cpp \
+    core/config.cpp \
+    core/engine.cpp \
+    core/WindowTree.cpp \
+    charts/ohlc/ohlc.cpp \
+    charts/delta/delta.cpp \
+    charts/tpo/tpo.cpp
+
 TARGET := i3trade
 
 ifeq ($(OS),Windows_NT)
@@ -19,7 +28,13 @@ endif
 
 all: $(TARGET)
 
-$(TARGET): $(SOURCES) core/engine.hpp core/WindowTree.hpp
+$(TARGET): $(SOURCES) \
+           core/engine.hpp \
+           core/config.hpp \
+           core/WindowTree.hpp \
+           charts/ohlc/ohlc.hpp \
+           charts/delta/delta.hpp \
+           charts/tpo/tpo.hpp
 >$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(SOURCES) $(LDFLAGS) -o $@ $(LDLIBS)
 
 clean:

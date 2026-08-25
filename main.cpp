@@ -1,7 +1,9 @@
 #include "core/WindowTree.hpp"
+#include "core/config.hpp"
 #include "core/engine.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -13,6 +15,9 @@
 #include <vector>
 
 #include <ncurses.h>
+#include "charts/ohlc/ohlc.hpp"
+#include "charts/delta/delta.hpp"
+#include "charts/tpo/tpo.hpp"
 
 class MappedFile
 {
@@ -99,19 +104,27 @@ int main()
     try
     {
         MappedFile input{"ticks.csv"};
+        const AppConfig config = load_config("config.ini");
         std::vector<Tick> ticks;
         parse_ticks(input.view(), ticks);
 
-        std::vector<RangeBar> bars;
-        calculate_range_bars(ticks, bars, 2.0);
-
-        TpoProfile tpo_profile;
-        calculate_tpo_profile(
-            ticks,
-            tpo_profile,
-            0.25, // Tick size, für ES/NQ/MES/MNQ passend
-            30    // 30-Minuten-TPO-Brackets
-        );
+        const std::array<SessionWindow, 3> session_windows{
+            config.rth,
+            config.overnight,
+            config.eth};
+        std::array<std::vector<RangeBar>, 3> bars;
+        std::array<TpoProfile, 3> tpo_profiles;
+        for (std::size_t index = 0; index < session_windows.size(); ++index)
+        {
+            std::vector<Tick> session_ticks;
+            for (const Tick &tick : ticks)
+            {
+                if (tick_in_session(tick, session_windows[index]))
+                    session_ticks.push_back(tick);
+            }
+            calculate_range_bars(session_ticks, bars[index], 2.0);
+            calculate_tpo_profile(session_ticks, tpo_profiles[index], 0.25, 30);
+        }
 
         initscr();
         cbreak();
@@ -126,6 +139,7 @@ int main()
 
         auto root = std::make_unique<WindowNode>();
         root->id = "main";
+        root->session = config.active_session;
         root->chart = std::make_unique<OhlcWindow>();
         WindowNode *active = root.get();
         std::size_t offset = 0;
@@ -141,14 +155,14 @@ int main()
                 layout_tree(*root, 0, 0, h - 1, w);
                 dirty = false;
             }
-            render_tree(*root, bars, tpo_profile, offset, active);
+            render_tree(*root, bars, tpo_profiles, offset, active);
             move(LINES - 1, 0);
             clrtoeol();
             mvprintw(
                 LINES - 1,
                 0,
                 "[%s:%s] h/l scroll | +/- TPO zoom | Tab pane | "
-                "v Delta | d delete | s TPO | 1/2/3 type | r session | q quit",
+                "r Right | d delete | b Below | 1/2/3 type | s session | q quit",
                 active->chart->title().data(),
                 active->id.c_str());
             wnoutrefresh(stdscr);
@@ -169,7 +183,8 @@ int main()
                 dirty = true;
                 continue;
             }
-            if ((key == 'h' || key == 'H') && offset + 1 < bars.size())
+            const auto &active_bars = bars[session_index(active->session)];
+            if ((key == 'h' || key == 'H') && offset + 1 < active_bars.size())
             {
                 ++offset;
                 continue;
@@ -185,6 +200,15 @@ int main()
                 continue;
             }
 
+            if (key == 's' || key == 'S')
+            {
+                active->session = next_session(active->session);
+                offset = 0;
+                if (auto *tpo = dynamic_cast<TpoWindow *>(active->chart.get()))
+                    tpo->set_session(active->session);
+                continue;
+            }
+
             if (key == '\t')
             {
                 std::vector<WindowNode *> leaves;
@@ -194,19 +218,22 @@ int main()
                     active = leaves[(static_cast<std::size_t>(it - leaves.begin()) + 1) % leaves.size()];
                 continue;
             }
-            if (key == 'v' || key == 'V')
+            if (key == 'r' || key == 'R')
             {
                 if (split_leaf(*active, SplitType::Vertical, std::make_unique<DeltaWindow>(), "pane" + std::to_string(++pane_number)))
                 {
+                    active->right->session = active->session;
                     active = active->right.get();
                     dirty = true;
                 }
                 continue;
             }
-            if (key == 's' || key == 'S')
+            if (key == 'b' || key == 'B')
             {
-                if (split_leaf(*active, SplitType::Horizontal, std::make_unique<TpoWindow>(), "pane" + std::to_string(++pane_number)))
+                if (split_leaf(*active, SplitType::Horizontal, std::make_unique<TpoWindow>(config.active_session), "pane" + std::to_string(++pane_number)))
                 {
+                    active->right->session = active->session;
+                    active->right->chart = std::make_unique<TpoWindow>(active->right->session);
                     active = active->right.get();
                     dirty = true;
                 }
@@ -224,7 +251,7 @@ int main()
             }
             if (key == '3')
             {
-                active->chart = std::make_unique<TpoWindow>();
+                active->chart = std::make_unique<TpoWindow>(active->session);
                 continue;
             }
             if (key == 'd' || key == 'D')

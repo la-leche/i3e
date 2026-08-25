@@ -70,6 +70,32 @@ After building, run the generated executable:
 ./i3trade
 ```
 
+### Session configuration
+
+The optional [config.ini](config.ini) file controls which session is loaded.
+Times use `HH:MM:SS`; the end time is exclusive. Available sessions are
+`rth`, `overnight`, and `eth`:
+
+```ini
+[session]
+active = eth
+
+[rth]
+start = 09:30:00
+end = 16:00:00
+
+[overnight]
+start = 18:00:00
+end = 09:30:00
+
+[eth]
+start = 18:00:00
+end = 16:00:00
+```
+
+If `config.ini` is missing, these default values are used. Sessions whose end
+time is earlier than their start time are treated as crossing midnight.
+
 If the executable name or build target changes, check the `Makefile` for the current command.
 
 ## Sample data

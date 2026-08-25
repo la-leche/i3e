@@ -3,6 +3,7 @@
 #include "engine.hpp"
 
 #include <cstddef>
+#include <array>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -19,8 +20,21 @@ enum class SplitType
 enum class Session
 {
     RTH,
+    Overnight,
     ETH
 };
+
+struct View
+{
+    std::size_t first;
+    std::size_t last;
+    int width;
+    int height;
+};
+
+void frame(WINDOW *window, std::string_view title, std::string_view id, bool active);
+bool too_small(WINDOW *window);
+View view_of(WINDOW *window, std::size_t count, std::size_t offset, int right_margin);
 
 class ChartWindow
 {
@@ -37,64 +51,10 @@ public:
     virtual bool handle_key(int) { return false; }
 };
 
-class OhlcWindow final : public ChartWindow
-{
-public:
-    [[nodiscard]] std::string_view title() const noexcept override;
-    void render(
-        WINDOW *,
-        std::string_view,
-        const std::vector<RangeBar> &,
-        const TpoProfile &,
-        std::size_t,
-        bool) const override;
-};
-
-class DeltaWindow final : public ChartWindow
-{
-public:
-    [[nodiscard]] std::string_view title() const noexcept override;
-    void render(
-        WINDOW *,
-        std::string_view,
-        const std::vector<RangeBar> &,
-        const TpoProfile &,
-        std::size_t,
-        bool) const override;
-};
-
-class TpoWindow final : public ChartWindow
-{
-public:
-    explicit TpoWindow(Session session = Session::ETH)
-        : session_(session)
-    {
-    }
-
-    [[nodiscard]] std::string_view title() const noexcept override;
-
-    void render(
-        WINDOW *,
-        std::string_view,
-        const std::vector<RangeBar> &,
-        const TpoProfile &,
-        std::size_t,
-        bool) const override;
-
-    bool handle_key(int key) override;
-
-private:
-    Session session_;
-    std::size_t scroll_offset_ = 0;
-
-    // Anzahl originaler Tick-Levels, die in einer Display-Zeile landen.
-    // 1 = maximale Detailansicht; 2, 4, 8 ... = Zoom-out.
-    int ticks_per_row_ = 1;
-};
-
 struct WindowNode
 {
     std::string id;
+    Session session = Session::ETH;
     SplitType split = SplitType::None;
     WINDOW *ncurses_window = nullptr;
     std::unique_ptr<ChartWindow> chart;
@@ -108,8 +68,8 @@ struct WindowNode
 void layout_tree(WindowNode &node, int y, int x, int height, int width);
 void render_tree(
     WindowNode &node,
-    const std::vector<RangeBar> &bars,
-    const TpoProfile &profile,
+    const std::array<std::vector<RangeBar>, 3> &bars,
+    const std::array<TpoProfile, 3> &profiles,
     std::size_t offset,
     const WindowNode *active_leaf);
 void collect_leaves(WindowNode &node, std::vector<WindowNode *> &leaves);
